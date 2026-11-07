@@ -1,0 +1,35 @@
+{
+  "git": {
+    "commit": true,
+    "commitMessage": "chore(bitbucket-mcp): release v${version}",
+    "push": true,
+    "pushTags": true,
+    "requireCleanWorkingDir": true,
+    "tag": true,
+    "tagMatch": "bitbucket-v*",
+    "tagName": "bitbucket-v${version}"
+  },
+  "github": {
+    "release": false,
+    "releaseName": "bitbucket-mcp v${version}"
+  },
+  "hooks": {
+    "after:release": "node ../../scripts/mirror.js bitbucket-mcp ${version}",
+    "before:init": ["pnpm -w run check", "pnpm test", "pnpm build"]
+  },
+  "npm": {
+    "allowSameVersion": false,
+    "publish": false
+  },
+  "only-version": true,
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "commitsOpts": {
+        "path": "."
+      },
+      "preset": {
+        "name": "conventionalcommits"
+      }
+    }
+  }
+}

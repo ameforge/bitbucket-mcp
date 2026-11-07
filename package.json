@@ -1,0 +1,57 @@
+{
+  "bin": {
+    "bitbucket-mcp": "dist/index.js"
+  },
+  "description": "MCP server for Bitbucket Cloud (REST API 2.0)",
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@rsbuild/core": "^2.3.1",
+    "dotenv": "^16.6.1",
+    "zod": "^3.25.76"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "bitbucket",
+    "bitbucket-cloud",
+    "atlassian",
+    "git",
+    "pull-request",
+    "code-review",
+    "code-search",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "cursor",
+    "windsurf",
+    "codex",
+    "gemini",
+    "ai",
+    "ai-agent",
+    "llm"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "name": "@pnam16/bitbucket-mcp",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "directory": "packages/bitbucket",
+    "type": "git",
+    "url": "git+https://github.com/pnam16/atlassian-mcp.git"
+  },
+  "scripts": {
+    "build": "rsbuild build",
+    "prepare": "pnpm build",
+    "release": "release-it",
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}
