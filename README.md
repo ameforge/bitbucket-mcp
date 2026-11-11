@@ -1,8 +1,8 @@
 # Bitbucket Cloud mcp
 
-MCP server for Bitbucket Cloud (REST API 2.0). It reads repositories, branches, commits, diffs, files, code search results and pull requests, and it can open, edit, approve, merge and decline pull requests.
+MCP server for Bitbucket Cloud (REST API 2.0). It reads repositories, branches, commits, diffs, files, build results and pull requests. It can open, edit, comment on, approve, request changes on, merge and decline pull requests, and create branches.
 
-The same tools are also served by [@pnam16/atlassian-mcp](https://github.com/pnam16/atlassian-mcp/tree/main/packages/atlassian) when `BITBUCKET_API_TOKEN` is set there.
+The same tools are also served by [@ameforge/atlassian-mcp](https://github.com/ameforge/atlassian-mcp/tree/main/packages/atlassian) when `BITBUCKET_API_TOKEN` is set there.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ claude mcp add bitbucket-mcp \
   -e BITBUCKET_EMAIL="you@company.com" \
   -e BITBUCKET_API_TOKEN="your_api_token" \
   -e BITBUCKET_WORKSPACE="your-workspace" \
-  -- npx -y @pnam16/bitbucket-mcp@latest
+  -- npx -y @ameforge/bitbucket-mcp@latest
 ```
 
 PowerShell (Windows):
@@ -30,7 +30,7 @@ claude mcp add bitbucket-mcp `
   -e BITBUCKET_EMAIL="you@company.com" `
   -e BITBUCKET_API_TOKEN="your_api_token" `
   -e BITBUCKET_WORKSPACE="your-workspace" `
-  -- npx -y @pnam16/bitbucket-mcp@latest
+  -- npx -y @ameforge/bitbucket-mcp@latest
 ```
 
 Or add it to `.mcp.json`:
@@ -40,7 +40,7 @@ Or add it to `.mcp.json`:
   "mcpServers": {
     "bitbucket-mcp": {
       "command": "npx",
-      "args": ["-y", "@pnam16/bitbucket-mcp@latest"],
+      "args": ["-y", "@ameforge/bitbucket-mcp@latest"],
       "env": {
         "BITBUCKET_EMAIL": "you@company.com",
         "BITBUCKET_API_TOKEN": "your_api_token",
@@ -76,25 +76,33 @@ Read:
 | ------------------ | ---------------------------------------------------------------------------------------------------- |
 | `list_repos`       | Repositories sorted by slug, filtered by `project_key` or `name_filter`                              |
 | `get_repo`         | Default branch, clone URLs, 5 recent commits, open PR count                                          |
-| `search_code`      | Matching lines per file, in the workspace or one `repo_slug`                                         |
 | `get_file`         | File content at `ref`; over 100,000 characters it is cut, a binary file returns no content           |
+| `list_files`       | Files and folders directly inside `path` at `ref`, with file sizes                                   |
+| `list_branches`    | Branches with their last commit, newest first, filtered by `name_filter`                             |
 | `get_branch`       | Head commit, whether it is the default branch, commits behind the default branch                     |
 | `compare_branches` | Commits ahead and behind (up to 100 listed each way) and files changed between `source` and `target` |
 | `get_diff`         | Unified diff and per-file stats for `from_ref..to_ref`; diff text over 100,000 characters is cut     |
 | `get_commits`      | Commits from `branch`, filtered by `since` and `author`, up to `max_results`                         |
+| `get_build_status` | Build and CI results reported on the head commit of a branch, or on a commit                         |
 | `list_prs`         | PRs by `state` (`OPEN`, `MERGED`, `DECLINED`, `ALL`) and `author`, up to 100 per state               |
 | `get_pr`           | Description, reviewers, participants, general and inline comments by file, commits, Jira keys        |
 
+There is no code search tool: Bitbucket Cloud retired its code search API (it answers 410, CHANGE-3167). Browse folders with `list_files`, or search a local clone, for example `git fetch origin` then `git grep -n "pattern" origin/main`.
+
 Write:
 
-| Tool           | Effect                                                                        |
-| -------------- | ----------------------------------------------------------------------------- |
-| `create_pr`    | Opens a PR from `source_branch` into `target_branch`, with optional reviewers |
-| `update_pr`    | Changes title, description or reviewers; `reviewers` replaces the whole list  |
-| `approve_pr`   | Approves the PR as the token's user                                           |
-| `unapprove_pr` | Withdraws that approval                                                       |
-| `merge_pr`     | Merges with the repository's default merge strategy                           |
-| `decline_pr`   | Declines the PR                                                               |
+| Tool                   | Effect                                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `create_pr`            | Opens a PR from `source_branch` into `target_branch`, with optional reviewers                              |
+| `update_pr`            | Changes title, description or reviewers; `reviewers` replaces the whole list                               |
+| `add_pr_comment`       | Comments on the PR; with `path` and `line`, inline on that line of the new file; with `parent_id`, a reply |
+| `approve_pr`           | Approves the PR as the token's user                                                                        |
+| `unapprove_pr`         | Withdraws that approval                                                                                    |
+| `request_changes_pr`   | Requests changes as the token's user                                                                       |
+| `unrequest_changes_pr` | Withdraws that change request                                                                              |
+| `merge_pr`             | Merges with the repository's default merge strategy                                                        |
+| `decline_pr`           | Declines the PR                                                                                            |
+| `create_branch`        | Creates `name` from `from` (a branch or commit, default branch if unset); fails if it exists               |
 
 Reviewers are given as display names or account IDs. A display name matches an exact name first, then a unique part of a name. When a name matches no one or several people, the tool sends nothing and lists the candidates.
 
@@ -112,7 +120,7 @@ pnpm build             # bundle to dist/index.js via rsbuild
 pnpm test
 ```
 
-Release from the repo root with `pnpm release:bitbucket`; see [docs/RELEASE.md](https://github.com/pnam16/atlassian-mcp/blob/main/docs/RELEASE.md).
+Release from the repo root with `pnpm release:bitbucket`; see [docs/RELEASE.md](https://github.com/ameforge/atlassian-mcp/blob/main/docs/RELEASE.md).
 
 ## Support
 
@@ -120,7 +128,7 @@ Questions or issues? Email [PNam](mailto:pnamhn16@gmail.com).
 
 If this project helps you, consider buying me a coffee:
 
-<img src="https://raw.githubusercontent.com/pnam16/atlassian-mcp/main/docs/buy-me-a-coffee.jpg" alt="Buy Me A Coffee" width="300">
+<img src="https://raw.githubusercontent.com/ameforge/atlassian-mcp/main/docs/buy-me-a-coffee.jpg" alt="Buy Me A Coffee" width="300">
 
 ---
 

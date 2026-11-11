@@ -179,6 +179,58 @@ export const registerPrWriteTools = (server, bbRequest) => {
     bbRequest,
   );
 
+  defineTool(
+    server,
+    "add_pr_comment",
+    {
+      description:
+        "Comment on a pull request. With path and line the comment is inline on that line of the new version of the file; with parent_id it replies to that comment",
+      inputSchema: z.object({
+        content: z.string().describe("Comment text, Markdown"),
+        line: z
+          .number()
+          .int()
+          .optional()
+          .describe("Line in the new version of the file; needs path"),
+        parent_id: z
+          .number()
+          .int()
+          .optional()
+          .describe("ID of the comment to reply to, from get_pr"),
+        path: z
+          .string()
+          .optional()
+          .describe("File path from the repo root, for an inline comment"),
+        pr_id,
+        repo_slug,
+        workspace,
+      }),
+    },
+    async (
+      {repo_slug, pr_id, content, path, line, parent_id, workspace},
+      bb,
+    ) => {
+      if (line !== undefined && !path) {
+        throw new Error("line needs path: pass the file the line belongs to");
+      }
+      const comment = await bb(
+        "POST",
+        `${prPath(workspace, repo_slug, pr_id)}/comments`,
+        {
+          content: {raw: content},
+          inline: path ? {path, to: line} : undefined,
+          parent: parent_id ? {id: parent_id} : undefined,
+        },
+      );
+      return {
+        html_url: comment.links?.html?.href,
+        id: comment.id,
+        inline: comment.inline,
+      };
+    },
+    bbRequest,
+  );
+
   const stateTool = (name, description, method, suffix) =>
     defineTool(
       server,
@@ -204,6 +256,18 @@ export const registerPrWriteTools = (server, bbRequest) => {
     "Withdraw your approval of a pull request",
     "DELETE",
     "approve",
+  );
+  stateTool(
+    "request_changes_pr",
+    "Request changes on a pull request as the token's user",
+    "POST",
+    "request-changes",
+  );
+  stateTool(
+    "unrequest_changes_pr",
+    "Withdraw your change request on a pull request",
+    "DELETE",
+    "request-changes",
   );
   stateTool(
     "merge_pr",

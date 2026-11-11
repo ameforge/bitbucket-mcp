@@ -6,6 +6,7 @@ import {
   countOf,
   fileStat,
   paginate,
+  quoteQ,
   repo_slug,
   repoPath,
   specPath,
@@ -29,7 +30,48 @@ const commitsBetween = (bb, base, include, exclude, pagelen, pages) =>
     pages,
   );
 
+/** A commit hash as is, or the head commit of a branch. */
+const commitOf = async (bb, base, ref) =>
+  /^[0-9a-f]{7,40}$/i.test(ref)
+    ? ref
+    : (await bb("GET", `${base}/refs/branches/${enc(ref)}?fields=target.hash`))
+        .target.hash;
+
 export const registerBranchTools = (server, bbRequest) => {
+  defineTool(
+    server,
+    "list_branches",
+    {
+      description:
+        "List branches, most recently updated first, optionally only those whose name contains name_filter. Returns the 50 newest; when truncated, narrow with name_filter. Use get_branch for one branch's details",
+      inputSchema: z.object({
+        name_filter: z
+          .string()
+          .optional()
+          .describe("Part of the branch name, e.g. KJMTP2-7024 or release"),
+        repo_slug,
+        workspace,
+      }),
+    },
+    async ({repo_slug, name_filter, workspace}, bb) => {
+      const base = repoPath(workspace, repo_slug);
+      const q = name_filter ? `&q=${enc(`name ~ ${quoteQ(name_filter)}`)}` : "";
+      const {truncated, values} = await paginate(
+        bb,
+        `${base}/refs/branches?sort=-target.date&pagelen=50${q}`,
+        1,
+      );
+      return {
+        branches: values.map((b) => ({
+          last_commit: commitInfo(b.target ?? {}),
+          name: b.name,
+        })),
+        truncated,
+      };
+    },
+    bbRequest,
+  );
+
   defineTool(
     server,
     "get_branch",
@@ -239,6 +281,77 @@ export const registerBranchTools = (server, bbRequest) => {
         if (sinceMs !== null && !pageHasNew) url = null;
       }
       return {commits, truncated: Boolean(url)};
+    },
+    bbRequest,
+  );
+
+  defineTool(
+    server,
+    "get_build_status",
+    {
+      description:
+        "Build and CI results (Pipelines, Jenkins, ...) reported on the head commit of a branch or on a commit",
+      inputSchema: z.object({
+        ref: z.string().describe("Branch name or commit hash"),
+        repo_slug,
+        workspace,
+      }),
+    },
+    async ({repo_slug, ref, workspace}, bb) => {
+      const base = repoPath(workspace, repo_slug);
+      const hash = await commitOf(bb, base, ref);
+      const {values} = await paginate(
+        bb,
+        `${base}/commit/${enc(hash)}/statuses?pagelen=100`,
+      );
+      return {
+        commit: hash.slice(0, 12),
+        ref,
+        statuses: values.map((s) => ({
+          name: s.name ?? s.key,
+          state: s.state,
+          updated_on: s.updated_on,
+          url: s.url,
+        })),
+      };
+    },
+    bbRequest,
+  );
+
+  defineTool(
+    server,
+    "create_branch",
+    {
+      description:
+        "Create a branch from another branch or a commit. Fails if the branch already exists",
+      inputSchema: z.object({
+        from: z
+          .string()
+          .optional()
+          .describe(
+            "Branch or commit to start from; defaults to the default branch",
+          ),
+        name: z.string().describe("New branch name, e.g. feature/x"),
+        repo_slug,
+        workspace,
+      }),
+    },
+    async ({repo_slug, name, from, workspace}, bb) => {
+      const base = repoPath(workspace, repo_slug);
+      const start = from || (await bb("GET", base)).mainbranch?.name;
+      if (!start)
+        throw new Error("The repository has no default branch; pass from");
+      const hash = await commitOf(bb, base, start);
+      const branch = await bb("POST", `${base}/refs/branches`, {
+        name,
+        target: {hash},
+      });
+      return {
+        commit: branch.target?.hash?.slice(0, 12),
+        from: start,
+        html_url: branch.links?.html?.href,
+        name: branch.name,
+      };
     },
     bbRequest,
   );

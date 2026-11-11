@@ -102,3 +102,58 @@ test("approve_pr reads the PR back instead of returning the participant", async 
   assert.equal(out.id, 9);
   assert.equal(out.title, "T");
 });
+
+test("add_pr_comment posts an inline comment on the new line of the file", async () => {
+  const {requests} = await runTool(
+    registerPrWriteTools,
+    "add_pr_comment",
+    {
+      content: "Why?",
+      line: 12,
+      path: "src/a.js",
+      pr_id: 9,
+      repo_slug: "svc",
+      workspace: "w5",
+    },
+    [["/repositories/w5/svc/pullrequests/9/comments", {id: 1}]],
+  );
+  assert.deepEqual(requests, [
+    `POST /repositories/w5/svc/pullrequests/9/comments ${JSON.stringify({
+      content: {raw: "Why?"},
+      inline: {path: "src/a.js", to: 12},
+    })}`,
+  ]);
+});
+
+test("add_pr_comment sends nothing for a line without a path", async () => {
+  const {isError, out, requests} = await runTool(
+    registerPrWriteTools,
+    "add_pr_comment",
+    {content: "Why?", line: 12, pr_id: 9, repo_slug: "svc", workspace: "w5"},
+    [],
+  );
+  assert.equal(isError, true);
+  assert.match(out, /line needs path/);
+  assert.deepEqual(requests, []);
+});
+
+test("add_pr_comment replies to the comment named by parent_id", async () => {
+  const {requests} = await runTool(
+    registerPrWriteTools,
+    "add_pr_comment",
+    {
+      content: "Done",
+      parent_id: 7,
+      pr_id: 9,
+      repo_slug: "svc",
+      workspace: "w5",
+    },
+    [["/repositories/w5/svc/pullrequests/9/comments", {id: 8}]],
+  );
+  assert.deepEqual(requests, [
+    `POST /repositories/w5/svc/pullrequests/9/comments ${JSON.stringify({
+      content: {raw: "Done"},
+      parent: {id: 7},
+    })}`,
+  ]);
+});

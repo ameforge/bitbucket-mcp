@@ -22,7 +22,6 @@
     "git",
     "pull-request",
     "code-review",
-    "code-search",
     "claude",
     "claude-code",
     "claude-desktop",
@@ -36,14 +35,14 @@
   ],
   "license": "MIT",
   "main": "dist/index.js",
-  "name": "@pnam16/bitbucket-mcp",
+  "name": "@ameforge/bitbucket-mcp",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "directory": "packages/bitbucket",
     "type": "git",
-    "url": "git+https://github.com/pnam16/atlassian-mcp.git"
+    "url": "git+https://github.com/ameforge/atlassian-mcp.git"
   },
   "scripts": {
     "build": "rsbuild build",
@@ -53,5 +52,5 @@
     "test": "node --test"
   },
   "type": "module",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
