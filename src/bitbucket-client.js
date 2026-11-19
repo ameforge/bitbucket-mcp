@@ -17,9 +17,10 @@ const TOKEN = clean(
 const AUTH = `Basic ${Buffer.from(`${EMAIL}:${TOKEN}`).toString("base64")}`;
 
 // Bitbucket Cloud rate limits with 429 and has transient 5xx. A POST is not
-// replayed: a 500 on create or merge may already have taken effect.
+// replayed: a 500 on create or merge may already have taken effect. Nor is a
+// DELETE: after a delete that went through, the replay's 404 reports a failure.
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
-const REPLAYABLE = new Set(["GET", "PUT", "DELETE"]);
+const REPLAYABLE = new Set(["GET", "PUT"]);
 const MAX_RETRIES = 2;
 const MAX_RETRY_AFTER_S = 10;
 const TIMEOUT_MS = 30_000;
@@ -57,6 +58,15 @@ export const bbRequest = async (method, path, body, {text = false} = {}) => {
       },
       method,
       signal: AbortSignal.timeout(TIMEOUT_MS),
+    }).catch((err) => {
+      if (err.name !== "TimeoutError") throw err;
+      // A write that timed out may have taken effect; a blind retry of a POST
+      // can create or merge twice.
+      throw new Error(
+        REPLAYABLE.has(method)
+          ? `Bitbucket did not answer within ${TIMEOUT_MS / 1000}s; safe to retry`
+          : `Bitbucket did not answer the ${method} within ${TIMEOUT_MS / 1000}s; it may still have taken effect, so do not retry: ask the user to check in Bitbucket first`,
+      );
     });
     const raw = await res.text();
     if (res.ok) {

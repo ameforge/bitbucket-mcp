@@ -222,6 +222,38 @@ test("get_build_status reads the statuses of a branch's head commit", async () =
   assert.equal(out.statuses[0].state, "FAILED");
 });
 
+// A hex-looking ref is a branch when the branch exists, else a commit hash.
+for (const [what, branch, hash] of [
+  [
+    "a branch whose name looks like a hash",
+    {target: {hash: "abc123"}},
+    "abc123",
+  ],
+  [
+    "a commit hash that is no branch",
+    () => {
+      throw new Error("Bitbucket API 404: Branch not found");
+    },
+    "cafe1234",
+  ],
+]) {
+  test(`get_build_status resolves ${what}`, async () => {
+    const {requests} = await runTool(
+      registerBranchTools,
+      "get_build_status",
+      {ref: "cafe1234", ...ws},
+      [
+        [`${REPO}/refs/branches/`, branch],
+        [`${REPO}/commit/`, {values: []}],
+      ],
+    );
+    assert.equal(
+      requests.at(-1),
+      `GET ${REPO}/commit/${hash}/statuses?pagelen=100`,
+    );
+  });
+}
+
 test("create_branch starts from the default branch's head commit", async () => {
   const {requests} = await runTool(
     registerBranchTools,

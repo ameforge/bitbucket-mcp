@@ -30,12 +30,24 @@ const commitsBetween = (bb, base, include, exclude, pagelen, pages) =>
     pages,
   );
 
-/** A commit hash as is, or the head commit of a branch. */
-const commitOf = async (bb, base, ref) =>
-  /^[0-9a-f]{7,40}$/i.test(ref)
-    ? ref
-    : (await bb("GET", `${base}/refs/branches/${enc(ref)}?fields=target.hash`))
-        .target.hash;
+/**
+ * The head commit of a branch, or a commit hash as is. The branch is tried
+ * first: a branch name like "cafe1234" or "2024a01" also looks like a hash.
+ */
+const commitOf = async (bb, base, ref) => {
+  try {
+    return (
+      await bb("GET", `${base}/refs/branches/${enc(ref)}?fields=target.hash`)
+    ).target.hash;
+  } catch (err) {
+    if (
+      /^[0-9a-f]{7,40}$/i.test(ref) &&
+      /^Bitbucket API 404\b/.test(err.message)
+    )
+      return ref;
+    throw err;
+  }
+};
 
 export const registerBranchTools = (server, bbRequest) => {
   defineTool(
