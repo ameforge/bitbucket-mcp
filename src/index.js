@@ -1,3 +1,7 @@
+import {
+  registerUsageReport,
+  withUsage,
+} from "@ameforge/atlassian-request/src/usage.js";
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
 import pkg from "../package.json" with {type: "json"};
@@ -5,7 +9,8 @@ import {registerTools} from "./register.js";
 
 const server = new McpServer({name: "bitbucket-mcp", version: pkg.version});
 
-registerTools(server);
+registerTools(withUsage(server, "bitbucket"));
+registerUsageReport(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

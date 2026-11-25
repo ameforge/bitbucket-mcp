@@ -62,30 +62,33 @@ Official setup guides:
 
 | Variable              | Required | Description                                                         |
 | --------------------- | -------- | ------------------------------------------------------------------- |
+| `ATLASSIAN_MCP_USAGE` | no       | Set to `off` to turn off the local usage log (see Usage log)        |
+| `ATLASSIAN_MCP_TOOLS` | no       | Comma-separated tool or package names to expose (default all)       |
 | `BITBUCKET_EMAIL`     | yes      | Atlassian account email; `ATLASSIAN_EMAIL` is read when it is unset |
 | `BITBUCKET_API_TOKEN` | yes      | API token; `ATLASSIAN_API_TOKEN` is read when it is unset           |
 | `BITBUCKET_WORKSPACE` | no       | Default workspace slug; without it every tool needs `workspace`     |
 
 ## Tools
 
-Every tool takes an optional `workspace`, which defaults to `BITBUCKET_WORKSPACE`.
+Every Bitbucket tool except `usage_report` takes an optional `workspace`, which defaults to `BITBUCKET_WORKSPACE`.
 
 Read:
 
-| Tool               | What it returns                                                                                      |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| `list_repos`       | Repositories sorted by slug, filtered by `project_key` or `name_filter`                              |
-| `get_repo`         | Default branch, clone URLs, 5 recent commits, open PR count                                          |
-| `get_file`         | File content at `ref`; over 100,000 characters it is cut, a binary file returns no content           |
-| `list_files`       | Files and folders directly inside `path` at `ref`, with file sizes                                   |
-| `list_branches`    | Branches with their last commit, newest first, filtered by `name_filter`                             |
-| `get_branch`       | Head commit, whether it is the default branch, commits behind the default branch                     |
-| `compare_branches` | Commits ahead and behind (up to 100 listed each way) and files changed between `source` and `target` |
-| `get_diff`         | Unified diff and per-file stats for `from_ref..to_ref`; diff text over 100,000 characters is cut     |
-| `get_commits`      | Commits from `branch`, filtered by `since` and `author`, up to `max_results`                         |
-| `get_build_status` | Build and CI results reported on the head commit of a branch, or on a commit                         |
-| `list_prs`         | PRs by `state` (`OPEN`, `MERGED`, `DECLINED`, `ALL`) and `author`, up to 100 per state               |
-| `get_pr`           | Description, reviewers, participants, general and inline comments by file, commits, Jira keys        |
+| Tool               | What it returns                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_repos`       | Repositories sorted by slug, filtered by `project_key` or `name_filter`                                                                                |
+| `get_repo`         | Default branch, clone URLs, 5 recent commits, open PR count                                                                                            |
+| `get_file`         | File content at `ref`; over 100,000 characters it is cut, a binary file returns no content                                                             |
+| `list_files`       | Files and folders directly inside `path` at `ref`, with file sizes                                                                                     |
+| `list_branches`    | Branches with their last commit, newest first, filtered by `name_filter`                                                                               |
+| `get_branch`       | Head commit, whether it is the default branch, commits behind the default branch                                                                       |
+| `compare_branches` | Commits ahead and behind (up to 100 listed each way) and files changed between `source` and `target`                                                   |
+| `get_diff`         | Unified diff and per-file stats for `from_ref..to_ref`; diff text over 100,000 characters is cut                                                       |
+| `get_commits`      | Commits from `branch`, filtered by `since` and `author`, up to `max_results`                                                                           |
+| `get_build_status` | Build and CI results reported on the head commit of a branch, or on a commit                                                                           |
+| `list_prs`         | PRs by `state` (`OPEN`, `MERGED`, `DECLINED`, `ALL`) and `author`, up to 100 per state                                                                 |
+| `get_pr`           | Description, reviewers, participants, general and inline comments by file, commits, Jira keys                                                          |
+| `usage_report`     | Done, calls and errors from the local usage log, per package and tool; with `format` set to `html`, also writes and opens a board page (see Usage log) |
 
 There is no code search tool: Bitbucket Cloud retired its code search API (it answers 410, CHANGE-3167). Browse folders with `list_files`, or search a local clone, for example `git fetch origin` then `git grep -n "pattern" origin/main`.
 
@@ -111,6 +114,19 @@ The state changes are separate tools so an MCP client can allow or deny each one
 Lists stop at a page limit instead of walking a whole history. Their result then has `truncated: true`, and a count that stopped reads like `"500+"`.
 
 All logs go to stderr; stdout is reserved for the MCP protocol.
+
+## Usage log
+
+Every tool call is logged to a local file with the time, the package, the tool name and whether the call succeeded. Arguments and content are never logged, and nothing is sent anywhere. All the Atlassian packages share this one file.
+
+The file is `$XDG_CONFIG_HOME/atlassian-mcp/usage.jsonl` when `XDG_CONFIG_HOME` is set. Otherwise it is `%APPDATA%\atlassian-mcp\usage.jsonl` on Windows and `~/.config/atlassian-mcp/usage.jsonl` elsewhere. Set `ATLASSIAN_MCP_USAGE=off` to stop logging. A log that cannot be written never fails a tool call.
+
+Call the `usage_report` tool to read the log. Its optional parameters are:
+
+- `days`: how many days back to count (default 30).
+- `format`: `text` (default) gives a summary per package and tool. `html` also writes `board.html` next to the log and opens it in the browser. The board has range buttons for 7, 30 and 90 days and all time, totals for done, calls and errors, a done per day chart, a table per tool and a button that saves a PNG share card.
+
+Done counts the write calls that succeeded. Read tools are those whose names start with `get_`, `list_`, `search_`, `find_`, `download_`, `generate_` or `compare_`. Every other tool counts as a write. Because the file is shared, the report also counts calls made through the other packages.
 
 ## Development
 

@@ -22,25 +22,6 @@ const stubFetch = (answers) => {
   return calls;
 };
 
-test("bbRequest retries a GET through a 503", async () => {
-  const calls = stubFetch([
-    [503, ""],
-    [200, '{"ok":true}'],
-  ]);
-  assert.deepEqual(await bbRequest("GET", "/user"), {ok: true});
-  assert.deepEqual(calls, [`GET ${BASE}/user`, `GET ${BASE}/user`]);
-});
-
-// A 5xx may come after the write went through: a replayed POST duplicates
-// it, a replayed DELETE turns a done delete into a 404.
-for (const method of ["POST", "DELETE"]) {
-  test(`bbRequest does not replay a ${method}`, async () => {
-    const calls = stubFetch([[503, ""]]);
-    await assert.rejects(() => bbRequest(method, "/x", {a: 1}), /503/);
-    assert.equal(calls.length, 1);
-  });
-}
-
 test("bbRequest reports Bitbucket's error message, not the raw body", async () => {
   stubFetch([
     [404, '{"type":"error","error":{"message":"Repository not found"}}'],
@@ -56,10 +37,19 @@ test("bbRequest follows an absolute next link without prefixing BASE again", asy
   assert.deepEqual(calls, [`GET ${BASE}/repositories/ws?page=2`]);
 });
 
-// A timed-out write may have taken effect; only GET and PUT may be retried.
+// Retries, timeouts and empty bodies are tested once in packages/request.
+// Here: which methods Bitbucket replays, read through the timeout message
+// that uses the same list. A 5xx or a timeout may come after a write went
+// through: a replayed POST duplicates it, a replayed DELETE turns a done
+// delete into a 404.
 for (const [method, says] of [
-  ["POST", /POST within 30s; it may still have taken effect, so do not retry/],
+  [
+    "POST",
+    /^Bitbucket did not answer the POST within 30s; it may still have taken effect, so do not retry/,
+  ],
+  ["DELETE", /may still have taken effect, so do not retry/],
   ["GET", /within 30s; safe to retry/],
+  ["PUT", /within 30s; safe to retry/],
 ]) {
   test(`bbRequest says what a timed-out ${method} means for a retry`, async () => {
     globalThis.fetch = async () => {
@@ -68,6 +58,6 @@ for (const [method, says] of [
         "TimeoutError",
       );
     };
-    await assert.rejects(() => bbRequest(method, "/x"), says);
+    await assert.rejects(() => bbRequest(method, "/x"), {message: says});
   });
 }

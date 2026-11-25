@@ -1,5 +1,6 @@
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
+import {productRequest} from "@ameforge/atlassian-request";
 import dotenv from "dotenv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,22 +17,21 @@ const TOKEN = clean(
 );
 const AUTH = `Basic ${Buffer.from(`${EMAIL}:${TOKEN}`).toString("base64")}`;
 
-// Bitbucket Cloud rate limits with 429 and has transient 5xx. A POST is not
-// replayed: a 500 on create or merge may already have taken effect. Nor is a
-// DELETE: after a delete that went through, the replay's 404 reports a failure.
-const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
-const REPLAYABLE = new Set(["GET", "PUT"]);
-const MAX_RETRIES = 2;
-const MAX_RETRY_AFTER_S = 10;
-const TIMEOUT_MS = 30_000;
-
-const errorMessage = (text) => {
-  try {
-    return JSON.parse(text).error?.message ?? text;
-  } catch {
-    return text;
-  }
-};
+// Bitbucket Cloud rate limits with 429 and says how long to wait. A POST is
+// not replayed: a 500 on create or merge may already have taken effect.
+const {send} = productRequest({
+  effect: "taken effect",
+  errorText: (text) => {
+    try {
+      return JSON.parse(text).error?.message ?? text;
+    } catch {
+      return text;
+    }
+  },
+  name: "Bitbucket",
+  replayable: ["GET", "PUT"],
+  retryAfter: true,
+});
 
 /**
  * Paths are relative to BASE. The `next` link of a paginated answer is an
@@ -47,45 +47,13 @@ export const bbRequest = async (method, path, body, {text = false} = {}) => {
       "Missing credentials: set BITBUCKET_EMAIL and BITBUCKET_API_TOKEN",
     );
   }
-  const url = path.startsWith(BASE) ? path : `${BASE}${path}`;
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, {
-      body: body ? JSON.stringify(body) : undefined,
-      headers: {
-        Accept: "application/json",
-        Authorization: AUTH,
-        ...(body && {"Content-Type": "application/json"}),
-      },
-      method,
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch((err) => {
-      if (err.name !== "TimeoutError") throw err;
-      // A write that timed out may have taken effect; a blind retry of a POST
-      // can create or merge twice.
-      throw new Error(
-        REPLAYABLE.has(method)
-          ? `Bitbucket did not answer within ${TIMEOUT_MS / 1000}s; safe to retry`
-          : `Bitbucket did not answer the ${method} within ${TIMEOUT_MS / 1000}s; it may still have taken effect, so do not retry: ask the user to check in Bitbucket first`,
-      );
-    });
-    const raw = await res.text();
-    if (res.ok) {
-      if (text) return raw;
-      return raw ? JSON.parse(raw) : null;
-    }
-    if (
-      attempt < MAX_RETRIES &&
-      RETRY_STATUS.has(res.status) &&
-      REPLAYABLE.has(method)
-    ) {
-      const after = Number(res.headers.get("retry-after"));
-      const waitMs =
-        after > 0
-          ? Math.min(after, MAX_RETRY_AFTER_S) * 1000
-          : 250 * 2 ** attempt;
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
-    }
-    throw new Error(`Bitbucket API ${res.status}: ${errorMessage(raw)}`);
-  }
+  return send(method, path.startsWith(BASE) ? path : `${BASE}${path}`, {
+    body: body ? JSON.stringify(body) : undefined,
+    headers: {
+      Accept: "application/json",
+      Authorization: AUTH,
+      ...(body && {"Content-Type": "application/json"}),
+    },
+    raw: text,
+  });
 };

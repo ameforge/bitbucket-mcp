@@ -25,10 +25,10 @@
   "plugins": {
     "@release-it/conventional-changelog": {
       "commitsOpts": {
-        "path": "."
+        "path": [".", "../request"]
       },
       "gitRawCommitsOpts": {
-        "path": "."
+        "path": [".", "../request"]
       },
       "preset": {
         "name": "conventionalcommits"
