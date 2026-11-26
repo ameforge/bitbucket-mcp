@@ -17,8 +17,7 @@ const TOKEN = clean(
 );
 const AUTH = `Basic ${Buffer.from(`${EMAIL}:${TOKEN}`).toString("base64")}`;
 
-// Bitbucket Cloud rate limits with 429 and says how long to wait. A POST is
-// not replayed: a 500 on create or merge may already have taken effect.
+// A POST is not replayed: a 500 on create or merge may already have taken effect.
 const {send} = productRequest({
   effect: "taken effect",
   errorText: (text) => {
@@ -34,12 +33,10 @@ const {send} = productRequest({
 });
 
 /**
- * Paths are relative to BASE. The `next` link of a paginated answer is an
- * absolute URL on BASE and is passed through as is.
  * @param {string} method
  * @param {string} path
  * @param {object} [body]
- * @param {{text?: boolean}} [opts] text: return the raw body (diff, file source).
+ * @param {{text?: boolean}} [opts]
  */
 export const bbRequest = async (method, path, body, {text = false} = {}) => {
   if (!EMAIL || !TOKEN) {

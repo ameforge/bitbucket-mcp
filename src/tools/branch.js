@@ -16,13 +16,11 @@ import {
 const MAX_DIFF_CHARS = 100_000;
 // 5 pages of 100: enough to say "500+ commits behind" without walking years of history.
 const COUNT_PAGES = 5;
-// Commit lists in compare_branches stop at 2 pages of 50.
 const LIST_PAGES = 2;
 const MAX_COMMIT_PAGES = 20;
 
 const enc = encodeURIComponent;
 
-/** Commits reachable from include but not from exclude. */
 const commitsBetween = (bb, base, include, exclude, pagelen, pages) =>
   paginate(
     bb,
@@ -30,10 +28,7 @@ const commitsBetween = (bb, base, include, exclude, pagelen, pages) =>
     pages,
   );
 
-/**
- * The head commit of a branch, or a commit hash as is. The branch is tried
- * first: a branch name like "cafe1234" or "2024a01" also looks like a hash.
- */
+// The branch is tried first: a branch name like "cafe1234" or "2024a01" also looks like a hash.
 const commitOf = async (bb, base, ref) => {
   try {
     return (
@@ -271,9 +266,7 @@ export const registerBranchTools = (server, bbRequest) => {
       for (let page = 0; url && page < MAX_COMMIT_PAGES; page++) {
         const data = await bb("GET", url);
         url = data?.next;
-        // History order is not date order: a rebased or cherry-picked commit
-        // keeps its old date among newer ones, so one old commit is skipped and
-        // only a page with nothing since the cutoff ends the walk.
+        // A rebased commit keeps its old date, so only a page with nothing since the cutoff ends the walk.
         let pageHasNew = false;
         for (const c of data?.values ?? []) {
           if (sinceMs !== null && Date.parse(c.date) < sinceMs) continue;

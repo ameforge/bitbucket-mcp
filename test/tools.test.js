@@ -222,7 +222,6 @@ test("get_build_status reads the statuses of a branch's head commit", async () =
   assert.equal(out.statuses[0].state, "FAILED");
 });
 
-// A hex-looking ref is a branch when the branch exists, else a commit hash.
 for (const [what, branch, hash] of [
   [
     "a branch whose name looks like a hash",

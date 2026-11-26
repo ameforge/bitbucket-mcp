@@ -1,5 +1,4 @@
-// Minimal stand-in for McpServer: captures each registered handler so tests
-// call a tool directly. It skips the zod inputSchema, like jira's helper.
+// Calls handlers directly and skips the zod inputSchema, like jira's helper.
 export const fakeServer = () => {
   const tools = new Map();
   return {
@@ -8,11 +7,6 @@ export const fakeServer = () => {
   };
 };
 
-/**
- * Runs one tool against a fake Bitbucket. Each request is answered by the
- * first [pathPrefix, reply] route whose prefix starts its path; a reply that
- * is a function gets the path. A request with a body is recorded with it as JSON. An unrouted path fails the call.
- */
 export const runTool = async (register, name, args, routes) => {
   const server = fakeServer();
   const requests = [];

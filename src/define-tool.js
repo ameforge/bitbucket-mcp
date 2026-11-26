@@ -1,9 +1,6 @@
 import {bbRequest as defaultBbRequest} from "./bitbucket-client.js";
 
-// Wraps a tool handler with the MCP response envelope: a resolved string is
-// sent as is, any other value as JSON, and a thrown Error becomes an isError
-// response. bbRequest is threaded through as a parameter so tests can pass a
-// fake and run handlers without live Bitbucket.
+// bbRequest is a parameter so tests can pass a fake and run handlers without live Bitbucket.
 export const defineTool = (
   server,
   name,

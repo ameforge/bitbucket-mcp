@@ -5,8 +5,6 @@ process.env.BITBUCKET_EMAIL = "me@example.com";
 process.env.BITBUCKET_API_TOKEN = "token";
 const {BASE, bbRequest} = await import("../src/bitbucket-client.js");
 
-// Replaces global fetch with a scripted list of [status, body] answers and
-// records each call's method and URL.
 const stubFetch = (answers) => {
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -37,11 +35,7 @@ test("bbRequest follows an absolute next link without prefixing BASE again", asy
   assert.deepEqual(calls, [`GET ${BASE}/repositories/ws?page=2`]);
 });
 
-// Retries, timeouts and empty bodies are tested once in packages/request.
-// Here: which methods Bitbucket replays, read through the timeout message
-// that uses the same list. A 5xx or a timeout may come after a write went
-// through: a replayed POST duplicates it, a replayed DELETE turns a done
-// delete into a 404.
+// Retries and timeouts are tested in packages/request; here only which methods Bitbucket replays.
 for (const [method, says] of [
   [
     "POST",

@@ -47,9 +47,7 @@ export const commitInfo = (commit) => ({
   message: firstLine(commit.message),
 });
 
-// Follows `next` up to maxPages. Walking every page of a long history (a stale
-// branch, all merged PRs) times out instead of answering, so the cap is
-// reported as truncated rather than hidden.
+// Walking every page of a long history times out, so the cap is reported as truncated, not hidden.
 export const paginate = async (bb, path, maxPages = 10) => {
   const values = [];
   let url = path;
@@ -61,7 +59,6 @@ export const paginate = async (bb, path, maxPages = 10) => {
   return {truncated: Boolean(url), values};
 };
 
-/** A count that may have stopped at the page cap, e.g. "100+". */
 export const countOf = ({truncated, values}) =>
   truncated ? `${values.length}+` : values.length;
 
@@ -71,7 +68,6 @@ export const jiraKeys = (texts) => [
   ...new Set(texts.flatMap((text) => (text ?? "").match(JIRA_KEY) ?? [])),
 ];
 
-/** Cuts long text so one diff or file cannot flood the model's context. */
 export const capText = (text, max) =>
   text.length > max
     ? {content: text.slice(0, max), truncated: true}

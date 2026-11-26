@@ -13,12 +13,9 @@ import {
 
 const MAX_FILE_CHARS = 100_000;
 
-/** The ref to put in a src URL, defaulting to the default branch. */
 const srcRef = async (bb, base, ref) => {
   const wanted = ref || (await bb("GET", base)).mainbranch?.name || "HEAD";
-  // The src endpoint cannot take a branch name with "/" in the path, so
-  // such a branch is read at its head commit. A tag with "/" is not a
-  // branch and falls through as is.
+  // The src endpoint cannot take a branch name with "/" in the path, so it is read at its head commit.
   if (wanted.includes("/")) {
     try {
       const branch = await bb(

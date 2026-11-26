@@ -13,8 +13,7 @@ const reviewers = z
   .array(z.string())
   .describe("Reviewer display names or account IDs");
 
-// Workspace members change rarely; one fetch serves every create and update
-// for a while instead of walking the member list on each call.
+// Workspace members change rarely, so one fetch serves creates and updates for a while.
 const MEMBERS_TTL_MS = 10 * 60 * 1000;
 const MEMBER_PAGES = 20;
 const membersCache = new Map();
@@ -32,12 +31,7 @@ const membersOf = async (bb, ws) => {
   return users;
 };
 
-/**
- * Maps names or account IDs to {account_id}: an account ID first, then a
- * unique exact display name, then a unique substring. Throws before any write
- * when a name matches no one or several people, so a PR never goes out
- * quietly missing a reviewer.
- */
+// Throws before any write on no match or several, so a PR never goes out quietly missing a reviewer.
 export const resolveReviewers = async (bb, ws, names) => {
   const users = await membersOf(bb, ws);
   const problems = [];
